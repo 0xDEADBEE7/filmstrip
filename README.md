@@ -11,9 +11,10 @@ behind this animation.
 
 ## Why a script
 
-- **Re-recordable.** After a UI change, one command records it again, and the same script gives the
-  same pixels.
-- **Nothing private on screen.** The data is invented and the clock is fixed.
+- **Re-recordable.** After a UI change, one command records it again. With the page's clock fixed,
+  the same app gives the same pixels.
+- **Any data.** It films whatever your app shows, real data or a mock you've set up. Making that
+  data is a separate job.
 - **Sharp.** Screens are captured at 4x, so a zoom crops real pixels instead of enlarging them.
 - **Small and exact.** Lossless WebP keeps every pixel: about 1.3 MB for this 13-second demo at 2x.
 
@@ -45,15 +46,15 @@ filmstrip capture/manifest.json -o demo.webp --sheet sheet.png
 glance.
 
 filmstrip isn't only for the web. Any program that saves screenshots can write the manifest, a
-short JSON list of screens, holds and effects. For example, the
-[DIE](https://github.com/0xDEADBEE7/die) editor draws its own screens for its extensions' READMEs.
-The format, and what makes a good demo, are in [SKILL.md](SKILL.md).
+short JSON list of screens, holds and effects. An app that can draw its own screen into a PNG, such
+as an editor or terminal UI with a headless test harness, a game or a canvas app, needs no browser
+at all. The format, and what makes a good demo, are in [SKILL.md](SKILL.md).
 
 ## With Claude Code
 
 [SKILL.md](SKILL.md) is a Claude Code skill. Clone this repository into `~/.claude/skills/filmstrip`;
 the skill installs itself into a venv the first time it's used. Claude will then make demos when you
-ask for one, following the skill's advice on timing, effects and invented data.
+ask for one, following the skill's advice on timing and effects.
 
 ## Development
 

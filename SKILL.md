@@ -1,13 +1,13 @@
 ---
 name: filmstrip
-description: Make short looping animations that show software working (a web app, the DIE editor or its extensions, any app you can screenshot) for READMEs, docs and pull requests. A script captures each screen, and filmstrip composes them, with spotlights, zooms, a pointer with clicks, key captions, cuts and fades, into a lossless animated WebP. Use when asked for a demo GIF, animation, screencast, product tour or walkthrough clip, to record or re-record one, to make one shorter, smaller or clearer, or to add an effect to one.
+description: Make short looping animations that show software working (a web app, an app that can draw its own screen, any app you can screenshot) for READMEs, docs and pull requests. A script captures each screen, and filmstrip composes them, with spotlights, zooms, a pointer with clicks, key captions, cuts and fades, into a lossless animated WebP. Use when asked for a demo GIF, animation, screencast, product tour or walkthrough clip, to record or re-record one, to make one shorter, smaller or clearer, or to add an effect to one.
 ---
 
 # filmstrip
 
 Make the animation from a script, not a screen recording:
 
-1. **Capture.** A script drives the app to each state and saves a screenshot: Playwright (`filmstrip.web`) for web apps, a native renderer such as DIE's for apps that draw themselves. For each screen it also records how long it shows, and where the things you'll point at are.
+1. **Capture.** A script drives the app to each state and saves a screenshot: Playwright (`filmstrip.web`) for web apps, or the app's own renderer for apps that can draw their screen into a PNG. For each screen it also records how long it shows, and where the things you'll point at are.
 2. **Film.** `filmstrip` turns the screens and effects into the frames of a loop and writes **lossless animated WebP**.
 
 ```
@@ -17,12 +17,16 @@ capture script ──> shots/*.png + manifest.json ──> filmstrip ──> dem
 Scripting it makes the result:
 
 - **reproducible:** after a UI change, re-record with one command;
-- **private:** invented data, no real names, paths or emails;
+- **steady:** with the page's clock fixed, the same app gives the same pixels;
 - **sharp:** text captured at 2–4x;
 - **small:** each frame stores only what changed;
 - **precise:** effects aim at elements by selector or by text.
 
 Only record the screen live (QuickTime) for what no script can drive.
+
+filmstrip records interactions and makes the animation. The data on screen is the person's
+choice: real data is fine, and so is a mock they've set up. Making mock data is a separate task
+and not filmstrip's job, so don't swap in or invent data unless asked.
 
 This folder is the filmstrip repository:
 - `src/filmstrip/film.py`: the `filmstrip` command;
@@ -97,25 +101,30 @@ Run it against the app's dev server (start it first and wait until it answers), 
 - **`rec.page`** is the Playwright page, for anything else.
 - **`headless=False`** needs the full browser: `python -m playwright install chromium`.
 
-**Data.** Point the app at fixtures, or mock its API with `rec.page.route(...)`, so every run shows the same invented names, numbers and dates. Never record a real account.
+**Data.** The film shows whatever the page shows. Fix `now` if dates are on screen, so a re-recording only changes when the app does. If the film is going somewhere public, look over the sheet for anything not meant to be shown.
 
-## Capture a native renderer (DIE)
+## Capture an app that draws its own screen
 
-An app that can draw its own screen into a PNG at a chosen scale makes the sharpest films. Draw each screen at 2x, and draw the screens you'll zoom into at 4x too (`"hires"`). Then find the targets in the app's own model of the screen, not in pixels.
+Some apps can draw their screen into an image without a window: editors and terminal UIs with a headless test harness, games, canvas apps, anything with an offscreen renderer. They make the sharpest films. The capture script is a small program in the app's own language:
 
-DIE's example is `examples/die_shots.rs` in the die-config repository. Run it with `cargo run --release --example die_shots -- OUT`, then `filmstrip OUT/manifest.json -o delta.webp`.
+1. Drive the app headlessly, one input at a time, the way its tests do.
+2. After each input, wait for its background work to finish, draw the screen to a PNG at 2x, and add a shot step with its hold.
+3. Write `manifest.json`. It's plain JSON, easy to write from any language:
 
-- **Recording.** It drives core's `Harness` with no window, through die-config's keys, theme and faces. It draws as DIE.app does: `Renderer::new(&Font::term(16.0, 2.0))`, a cell 19 × 40 px, which is 9.5 × 20 logical.
-- **Captions.** It writes key captions into the empty command line itself.
-- **Targets.** It finds them from the scene's text, e.g. the row containing `→`, or the first bold cell on a `+` line.
-- **Invented repository.** It reuses `Repo` and the history from `delta_shot.rs`.
+```json
+{"scale": 2, "loop": "cut", "steps": [
+  {"shot": "shots/000.png", "scale": 2, "hold": 1300},
+  {"shot": "shots/001.png", "scale": 2, "hold": 260}
+]}
+```
 
-DIE-specific lessons:
-- Give the status line a fake HOME (`die_dev::status_text(home, Some(home))`) so it reads `~/`.
-- Size the window's columns so nothing wraps.
-- Assert every key is error-free.
-- Call `run_until_idle()` after each key so background work such as git finishes.
-- In a search prompt `j` types into the query; `<Esc>` leaves the prompt and keeps the query.
+- **Targets.** Find effect targets in the app's own model of the screen (a text grid, a widget tree), not in pixels. For example, take the row whose text contains `→`, and convert it to logical pixels. On a character grid drawn at 2x, a cell's logical size is its pixel size divided by 2.
+- **Zooms.** Draw the screen you'll zoom into again at 4x, and give it as `hires` (`hires_scale` 4), so the zoom crops real pixels.
+- **Captions.** Draw key captions in the app itself if it has a quiet place for them, such as a status or command line. Otherwise use filmstrip's `caption`.
+- **Lessons:**
+  - Check that every input worked, so a broken step fails the run instead of filming a wrong screen.
+  - Size the window so nothing wraps.
+  - Whatever the app shows about the machine it runs on, such as paths or a user name in a status line, is filmed too.
 
 ## Capture anything else
 
@@ -204,15 +213,14 @@ filmstrip capture/demo/manifest.json -o demo.webp [--sheet sheet.png] [--frames 
 - **`via="dip"` marks a jump:** a new page, or time skipped off camera. Never crossfade two screens of text: halfway through, the letters overlap into a jumble. filmstrip doesn't do that for big changes.
 - **Cuts are free.** Do steps off camera, then dip into the result:
   - web: `rec.act(fn, capture=False)` or `rec.page` directly, then `rec.shot(via="dip")`;
-  - DIE: `press` with no shot.
+  - an app that draws itself: send the input without saving a screen.
 - **Use effects sparingly:** one spotlight and one or two zooms per film. Zoom to about 1.6–2× so whole lines stay readable. Spotlight the row, card or value the story is about.
 - **Captions** show keys a viewer can't see being pressed (`Esc`, `RET`, `Ctrl+K`). A caption shows only on its own shot. Don't caption clicks; the pointer shows those.
 - **Loop seamlessly.** End where you began (clear the search, go back), or let `loop: "dip"` blend the end into the start.
-- **Use invented data that looks real:**
-  - a small believable project with two or three people at `example.com`;
-  - fixed dates;
+- **Show what the story needs:**
   - nothing cut off or wrapped;
-  - every feature the story sells visible at least once.
+  - every feature the story sells visible at least once;
+  - fixed dates, so a re-recording only changes when the app does.
 
 ## Output
 
@@ -228,14 +236,14 @@ filmstrip capture/demo/manifest.json -o demo.webp [--sheet sheet.png] [--frames 
 
 - Put the animation straight after the one- or two-line pitch: `<img src="docs/demo.webp" width="100%" alt="…">`.
 - Make the alt text tell the whole film step by step.
-- Add a one-line caption: the data is invented, and what made it.
+- Add a one-line caption: what made it, and anything a reader should know about the data shown.
 - Keep the capture script in the project (`examples/` or `scripts/`), with filmstrip as a dev dependency and the record command in the development docs, so anyone can re-record.
 - Write captures to a gitignored folder (`capture/`) and commit only the `.webp`.
 - After pushing, check that the README plays it.
 
 ## Checklist
 
-1. The data is invented and fixed (clock, names, numbers), with no real paths, accounts or emails.
+1. What's on screen is what you mean to publish, and the clock is fixed if dates show.
 2. The viewport or window is sized so nothing wraps; every effect's target is on screen in its shot.
 3. The film is 10–15 s, holds new screens 1.1–1.4 s, and has one spotlight and at most two zooms.
 4. Real interactions cut, and jumps dip.
