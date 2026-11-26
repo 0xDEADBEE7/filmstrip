@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "filmstrip"
+version = "0.1.0"
+description = "Scripted demo animations of software: capture screens, add spotlights, zooms, a pointer and captions, and write a lossless animated WebP."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT OR Apache-2.0"
+license-files = ["LICENSE-MIT", "LICENSE-APACHE"]
+dependencies = ["pillow>=10.1"]
+
+[project.optional-dependencies]
+web = ["playwright>=1.45"]
+test = ["pytest>=8"]
+
+[project.scripts]
+filmstrip = "filmstrip.film:main"
+
+[project.urls]
+Homepage = "https://github.com/0xDEADBEE7/filmstrip"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

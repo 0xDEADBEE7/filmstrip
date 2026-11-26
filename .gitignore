@@ -1,0 +1,10 @@
+__pycache__/
+*.egg-info/
+build/
+dist/
+.venv/
+.pytest_cache/
+# Captures and frames are working files; commit only the finished .webp.
+capture/
+frames/
+*-sheet.png
